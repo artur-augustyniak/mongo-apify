@@ -17,11 +17,11 @@ class JSONEncoder(json.JSONEncoder):
 
 
 class MongoProvider(object):
-    def __init__(self, mongo_url, uq_indices=[]):
+    def __init__(self, mongo_url, db, coll, uq_indices=[]):
         self.uq_indices = uq_indices
         self.myclient = pymongo.MongoClient(mongo_url)
-        self.mydb = self.myclient[os.environ.get("MONGO_DB", 'apk')]
-        self.mycol = self.mydb[os.environ.get("MONGO_COLLECTION", 'signature')]
+        self.mydb = self.myclient[db]
+        self.mycol = self.mydb[coll]
         for ui in self.uq_indices:
             self.mycol.create_index(ui, unique=True)
 
