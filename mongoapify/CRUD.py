@@ -138,7 +138,10 @@ class MongoProvider(object):
             self.mycol.insert_one(pld)
             return json.loads(JSONEncoder().encode(pld)), False
         except pymongo.errors.DuplicateKeyError as not_uq:
-            existing = self.mycol.find_one({'sha256': pld['sha256']})
+            idx_query = {}
+            for k in self.uq_indices:
+                idx_query[k] = pld[k] 
+            existing = self.mycol.find_one(idx_query)
             return json.loads(JSONEncoder().encode(existing)), True
 
     def get_one(self, _id) -> dict:
