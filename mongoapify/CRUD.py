@@ -47,7 +47,7 @@ class MongoProvider(object):
             return [('_id', pymongo.DESCENDING), ]
 
     @staticmethod
-    def _create_mongo_filter_dict(filter_list, whole_word, ignore_case):
+    def _create_mongo_filter_dict(filter_list, whole_word, ignore_case, force_and):
         it = iter(filter_list)
         tuples = zip(it, it)
 
@@ -62,8 +62,8 @@ class MongoProvider(object):
             tuples
         ))
         if flist:
-            or_dict = {"$or": list(flist)}
-            return or_dict
+            filter_dict = {"$and" if force_and else "$or" : list(flist)}
+            return filter_dict
         else:
             return {}
 
@@ -96,6 +96,7 @@ class MongoProvider(object):
         filtering = q.get('filtering', [])
         ignore_case = q.get('ignore_case', False)
         whole_word = q.get('whole_word', True)
+        force_and = q.get('force_and', False)
         limit = q.get('limit', 20)
         offset = q.get('offset', 0)
         sort = q.get('sort', ['-_id'])
@@ -107,7 +108,7 @@ class MongoProvider(object):
         time_fltr = MongoProvider._create_mongo_timerange_filters(
             created_at, updated_at)
         fltr = MongoProvider._create_mongo_filter_dict(
-            filtering, whole_word, ignore_case)
+            filtering, whole_word, ignore_case, force_and)
         if time_fltr['created_at']:
             fltr['created_at'] = time_fltr['created_at']
         if time_fltr['updated_at']:
