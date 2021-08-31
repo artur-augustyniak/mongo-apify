@@ -23,7 +23,8 @@ def make_connexion_app(
     api_file,
     log_level='INFO',
     logstash_host=None,
-    logstash_port=0
+    logstash_port=0,
+    strict_slashes = True
 ):
 
     with tempfile.NamedTemporaryFile() as tmp:
@@ -52,11 +53,8 @@ def make_connexion_app(
             logger.info("logstash not configured")
 
         app = connexion.App(__name__, specification_dir="/tmp")
-
         flask_app = app.app
-        flask_app.url_map.strict_slashes = False
-
+        flask_app.url_map.strict_slashes = strict_slashes
         CORS(app.app)
-
         app.add_api(tmp.name, resolver=RestyResolver('api'))
         return app
