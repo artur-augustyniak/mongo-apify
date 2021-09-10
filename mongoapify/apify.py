@@ -23,7 +23,6 @@ def error_handler(api_method):
                 msg = exc
             else:
                 msg = "Something went wrong, call 911"
-
             return {
                 "detail": msg,
                 "status": 500

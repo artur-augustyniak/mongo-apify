@@ -5,7 +5,9 @@ from bson import ObjectId
 from bson.json_util import dumps
 from bson.objectid import ObjectId
 from datetime import datetime as dt
+import logging
 
+logger = logging.getLogger(__name__)
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -63,6 +65,7 @@ class MongoProvider(object):
         ))
         if flist:
             filter_dict = {"$and" if force_and else "$or" : list(flist)}
+            logger.debug("mongo filter %s" % (json.dumps(filter_dict)))
             return filter_dict
         else:
             return {}
