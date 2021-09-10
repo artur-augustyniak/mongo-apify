@@ -12,6 +12,7 @@ setup(
                       'gunicorn==20.1.0',
                       'flask-cors==3.0.10',
                       'connexion[swagger-ui]==2.8.0',
+                      'pika==1.2.0'
                       ],
 
     classifiers=[
