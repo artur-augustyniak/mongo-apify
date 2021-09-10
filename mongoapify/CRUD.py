@@ -53,17 +53,11 @@ class MongoProvider(object):
         it = iter(filter_list)
         tuples = zip(it, it)
 
-        def stringify_val(v):
-            if type(v) == str:
-                return v
-            return str(v).lower()
-# { $expr: { $lte: [ { $toDouble: "$Price" }, 1000.0 ] } })
-#  {"$or": [{"package_name_in_google_play": {"$regex": "^true$", "$options": ""}}]}
         def make_regex_dicts(t):
-            return {{"$toString" : t[0]}: {'$regex': stringify_val(t[1]), '$options': 'i' if ignore_case else ''}}
+            return {t[0]: {'$regex': t[1], '$options': 'i' if ignore_case else ''}}
 
         def make_eq_dicts(t):
-            return {{"$toString" : t[0]}: {'$regex': '^%s$' % (stringify_val(t[1])), '$options': 'i' if ignore_case else ''}}
+            return {t[0]: {'$regex': '^%s$' % (t[1]), '$options': 'i' if ignore_case else ''}}
 
         flist = list(map(
             make_eq_dicts if whole_word else make_regex_dicts,
