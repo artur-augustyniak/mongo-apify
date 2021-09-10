@@ -23,10 +23,10 @@ class RabbitEmmiter(object):
 
             channel.basic_publish(
                 exchange=self.exc, routing_key=routing_key, body=message)
-            logger.debug("Messege %s sent to %s" % (self.rk, self.exc))
+            logger.debug("Messege %s sent to %s" % (routing_key, self.exc))
         except Exception as ex:
             logger.critical("Messege %s not sent to %s - with err." %
-                            (self.rk, self.exc, ex.__str__()))
+                            (routing_key, self.exc, ex.__str__()))
         finally:
             if connection is not None:
                 connection.close()
