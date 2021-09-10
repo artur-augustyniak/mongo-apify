@@ -25,7 +25,7 @@ class RabbitEmmiter(object):
                 exchange=self.exc, routing_key=routing_key, body=message)
             logger.debug("Messege %s sent to %s" % (routing_key, self.exc))
         except Exception as ex:
-            logger.critical("Messege %s not sent to %s - with err." %
+            logger.critical("Messege %s not sent to %s - with err: %s" %
                             (routing_key, self.exc, ex.__str__()))
         finally:
             if connection is not None:
