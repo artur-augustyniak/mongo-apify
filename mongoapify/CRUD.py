@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class JSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, ObjectId):
@@ -53,18 +54,32 @@ class MongoProvider(object):
         it = iter(filter_list)
         tuples = zip(it, it)
 
-        def make_regex_dicts(t):
-            return {t[0]: {'$regex': t[1], '$options': 'i' if ignore_case else ''}}
+        def prepare_tuple(t):
+            f, v = t
+            try:
+                v = json.loads(v)
+            except json.decoder.JSONDecodeError:
+                pass
+            return (f, v)
 
-        def make_eq_dicts(t):
-            return {t[0]: {'$regex': '^%s$' % (t[1]), '$options': 'i' if ignore_case else ''}}
+        def make_query_dict_fun():
+            def thunk(t):
+                field, val = prepare_tuple(t)
+                if type(val) != str:
+                    return {field: val}
+                else:
+                    if whole_word:
+                        return {field: {'$regex': '^%s$' % (val), '$options': 'i' if ignore_case else ''}}
+                    else:
+                        return {field: {'$regex': val, '$options': 'i' if ignore_case else ''}}
+            return thunk
 
         flist = list(map(
-            make_eq_dicts if whole_word else make_regex_dicts,
+            make_query_dict_fun(),
             tuples
         ))
         if flist:
-            filter_dict = {"$and" if force_and else "$or" : list(flist)}
+            filter_dict = {"$and" if force_and else "$or": list(flist)}
             logger.debug("mongo filter %s" % (json.dumps(filter_dict)))
             return filter_dict
         else:
@@ -100,14 +115,15 @@ class MongoProvider(object):
         ignore_case = q.get('ignore_case', False)
         whole_word = q.get('whole_word', True)
         force_and = q.get('force_and', False)
+        shape_mode = q.get('shape_mode', None)
         limit = q.get('limit', 20)
         offset = q.get('offset', 0)
         sort = q.get('sort', ['-_id'])
         created_at = q.get('created_at', [])
         updated_at = q.get('updated_at', [])
-        exclude = q.get('exclude', None)
-        if exclude is not None:
-            exclude = {k: 0 for k in exclude}
+        shape = q.get('shape', None)
+        if shape is not None:
+            shape = {k: int(shape_mode) for k in shape}
         time_fltr = MongoProvider._create_mongo_timerange_filters(
             created_at, updated_at)
         fltr = MongoProvider._create_mongo_filter_dict(
@@ -116,7 +132,7 @@ class MongoProvider(object):
             fltr['created_at'] = time_fltr['created_at']
         if time_fltr['updated_at']:
             fltr['updated_at'] = time_fltr['updated_at']
-        items = self.mycol.find(fltr, exclude)\
+        items = self.mycol.find(fltr, shape)\
             .skip(offset)\
             .limit(limit)\
             .sort(MongoProvider._create_mongo_sort_dict(sort))
@@ -144,7 +160,7 @@ class MongoProvider(object):
         except pymongo.errors.DuplicateKeyError as not_uq:
             idx_query = {}
             for k in self.uq_indices:
-                idx_query[k] = pld[k] 
+                idx_query[k] = pld[k]
             existing = self.mycol.find_one(idx_query)
             return json.loads(JSONEncoder().encode(existing)), True
 
@@ -155,6 +171,9 @@ class MongoProvider(object):
         return json.loads(item)
 
     def update(self, _id, upload_payload={}) -> dict:
+        orig_entry = self.get_one(_id)
+        if orig_entry is None:
+            return None
         query = {"_id": ObjectId(_id)}
         upload_payload.pop("_id", None)
         upload_payload.pop("created_at", None)
@@ -163,8 +182,24 @@ class MongoProvider(object):
         update_time = dt.now()
         upload_payload['updated_at'] = update_time
         new_values = {"$set": upload_payload}
-        updated = self.mycol.update_one(query, new_values)
-        return self.get_one(_id)
+        _ = self.mycol.update_one(query, new_values)
+        upload_payload['updated_at'] = str(upload_payload['updated_at'])
+        ret_dict = {}
+        ret_dict['entry'] = orig_entry
+        ret_dict['patch'] = upload_payload
+        # changed_fields = []
+        # def iterdict(d):
+        #     for k,v in d.items():        
+        #         if isinstance(v, dict):
+        #             iterdict(v)
+        #         else:            
+        #             print("$" * 80)
+        #             print (k,":",v)
+        #             if k in orig_entry and 
+
+        # iterdict(upload_payload)
+        
+        return ret_dict
 
     def delete(self, _id) -> dict:
         query = {"_id": ObjectId(_id)}
