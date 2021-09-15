@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_apigw_user():
-    api_key = connexion.request.headers.get('X-API-Key', None)
+    api_key = connexion.request.headers.get('x-gw-user', None)
     if api_key:
         return api_key.split(":")[0]
     else:
