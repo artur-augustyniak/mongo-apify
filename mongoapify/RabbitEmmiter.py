@@ -6,6 +6,12 @@ import pika
 
 logger = logging.getLogger(__name__)
 
+# print("#" * 80)
+# print(logging.root.level)
+# print(logging.INFO)
+# if logging.root.level <= logging.INFO:
+logging.getLogger('pika').setLevel(logging.ERROR)
+
 
 class RabbitEmmiter(object):
 
