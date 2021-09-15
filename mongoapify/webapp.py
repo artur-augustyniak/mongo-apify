@@ -15,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 def get_apigw_user():
-    return connexion.request.headers.get('x-gw-user', "system")
+    api_key = connexion.request.headers.get('X-API-Key', None)
+    if api_key:
+        return api_key.split(":")[0]
+    else:
+        return "system"
 
 
 def make_connexion_app(
