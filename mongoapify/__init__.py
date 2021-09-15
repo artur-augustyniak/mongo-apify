@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from .webapp import make_connexion_app
+from .webapp import make_connexion_app, get_apigw_user
 from .CRUD import MongoProvider
 from .RabbitEmmiter import RabbitEmmiter
 from .apify import NOT_FOUND_RESP
@@ -13,7 +13,8 @@ __all__ = [
     'MongoProvider',
     'NOT_FOUND_RESP',
     'error_handler',
-    'RabbitEmmiter'
+    'RabbitEmmiter',
+    'get_apigw_user'
 ]
 
 

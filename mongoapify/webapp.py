@@ -14,6 +14,10 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 
+def get_apigw_user():
+    return connexion.request.headers.get('x-gw-user', "system")
+
+
 def make_connexion_app(
     api_version,
     host,
@@ -24,7 +28,7 @@ def make_connexion_app(
     log_level='INFO',
     logstash_host=None,
     logstash_port=0,
-    strict_slashes = True
+    strict_slashes=True
 ):
 
     with tempfile.NamedTemporaryFile() as tmp:
