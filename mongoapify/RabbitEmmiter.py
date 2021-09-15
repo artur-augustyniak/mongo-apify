@@ -6,7 +6,7 @@ import pika
 
 logger = logging.getLogger(__name__)
 
-
+#TODO silence pka INFO if root.logger < DEBUG
 logging.getLogger('pika').setLevel(logging.ERROR)
 
 
