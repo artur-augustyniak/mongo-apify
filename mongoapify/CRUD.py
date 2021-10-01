@@ -164,6 +164,46 @@ class MongoProvider(object):
             existing = self.mycol.find_one(idx_query)
             return json.loads(JSONEncoder().encode(existing)), True
 
+
+    def create_bulk(self, payload={}):
+        pld = payload.get('payload', None)
+        if type(pld) is not list:
+            raise RuntimeError(
+                "create - no payload key or payload is not an array")
+        n_inserted = 0
+        sent = len(pld)
+        errors = []
+
+        for doc in pld:
+            doc.pop("_id", None)
+            creation_time = dt.now()
+            doc['created_at'] = creation_time
+            doc['updated_at'] = creation_time
+        try:
+            res = self.mycol.insert_many(pld, ordered=False)
+            n_inserted = len(res.inserted_ids)
+        except pymongo.errors.BulkWriteError as bwe:
+            n_inserted = bwe.details.get("nInserted", 0)
+            errors = filter(
+                lambda i: i is not None,
+                map(lambda item: {
+                        "key_value" : item.get("keyValue", None), 
+                        "key_pattern" : item.get("keyPattern", None), 
+                        "error_msg" : item.get("errmsg", None)
+                    },
+                    bwe.details.get("writeErrors", [])
+                ))
+            
+        res = {
+            "sent" : sent,
+            "processed" : n_inserted,
+            "errors": list(errors)
+        }
+        return json.loads(JSONEncoder().encode(res)), n_inserted > 0
+
+
+    
+
     def get_one(self, _id) -> dict:
         query = {"_id": ObjectId(_id)}
         item = self.mycol.find_one(query)
@@ -200,6 +240,44 @@ class MongoProvider(object):
         # iterdict(upload_payload)
         
         return ret_dict
+
+    def update_bulk(self, payload={}):
+        bulk write!
+        from pprint import pprint as pp
+        pld = payload.get('payload', None)
+        if type(pld) is not list:
+            raise RuntimeError(
+                "create - no payload key or payload is not an array")
+        n_inserted = 0
+        sent = len(pld)
+        errors = []
+
+        for doc in pld:
+            doc.pop("_id", None)
+            creation_time = dt.now()
+            doc['created_at'] = creation_time
+            doc['updated_at'] = creation_time
+        try:
+            res = self.mycol.insert_many(pld, ordered=False)
+            n_inserted = len(res.inserted_ids)
+        except pymongo.errors.BulkWriteError as bwe:
+            n_inserted = bwe.details.get("nInserted", 0)
+            errors = filter(
+                lambda i: i is not None,
+                map(lambda item: {
+                        "key_value" : item.get("keyValue", None), 
+                        "key_pattern" : item.get("keyPattern", None), 
+                        "error_msg" : item.get("errmsg", None)
+                    },
+                    bwe.details.get("writeErrors", [])
+                ))
+            
+        res = {
+            "sent" : sent,
+            "processed" : n_inserted,
+            "errors": list(errors)
+        }
+        return json.loads(JSONEncoder().encode(res)), n_inserted > 0
 
     def delete(self, _id) -> dict:
         query = {"_id": ObjectId(_id)}
