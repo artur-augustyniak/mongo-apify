@@ -1,4 +1,5 @@
 import yaml
+import os
 
 
 DEFAULT_API_RESP = {
@@ -193,7 +194,7 @@ def complete_yaml(yaml_file_path, api_version, host, base_path, scheme):
         insert_paths_parts(y.get("paths", {}))
         y["swagger"] = "2.0"
         y["host"] = host
-        y["basePath"] = base_path.replace("-VER-", api_version)
+        y["basePath"] = "%s/%s" % (base_path.replace("-VER-", api_version), os.path.basename(yaml_file_path).split(".")[0])
         y["schemes"] = [scheme]
         if y.get("info"):
             y["info"]["version"] = api_version
