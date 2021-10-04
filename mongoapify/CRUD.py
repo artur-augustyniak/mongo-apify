@@ -6,6 +6,7 @@ from bson.json_util import dumps
 from bson.objectid import ObjectId
 from datetime import datetime as dt
 import logging
+from .apify import NOT_FOUND_RESP, error_resp, generic_resp
 
 BULK_SIZE = 500
 
@@ -156,22 +157,23 @@ class MongoProvider(object):
         return {"count": count, "results": items}
 
     def create(self, payload={}):
-        pld = payload.get("payload", None)
-        if pld is None:
-            raise RuntimeError("create - no payload key")
-        pld.pop("_id", None)
+        if type(payload) is not dict:
+            return (
+                error_resp(
+                    "create - no payload key or patch_payload is not an object",
+                    400,
+                ),
+                400,
+            )
+        payload.pop("_id", None)
         creation_time = dt.now()
-        pld["created_at"] = creation_time
-        pld["updated_at"] = creation_time
+        payload["created_at"] = creation_time
+        payload["updated_at"] = creation_time
         try:
-            self.mycol.insert_one(pld)
-            return json.loads(JSONEncoder().encode(pld)), False
-        except pymongo.errors.DuplicateKeyError as not_uq:
-            idx_query = {}
-            for k in self.uq_indices:
-                idx_query[k] = pld[k]
-            existing = self.mycol.find_one(idx_query)
-            return json.loads(JSONEncoder().encode(existing)), True
+            self.mycol.insert_one(payload)
+            return generic_resp("Created", 201), 201
+        except pymongo.errors.DuplicateKeyError:
+            return error_resp("Item with this key exists", 409), 409
 
     def get_one(self, _id) -> dict:
         query = {"_id": ObjectId(_id)}
@@ -180,43 +182,38 @@ class MongoProvider(object):
         return json.loads(item)
 
     def update(self, _id, payload={}) -> dict:
-
-        orig_entry = self.get_one(_id)
-        if orig_entry is None:
-            return None
-
-        upload_payload = payload.get("patch_payload", None)
-        if type(upload_payload) is not dict:
-            raise RuntimeError(
-                "update - no patch_payload key or patch_payload is not an object"
-            )
-        query = {"_id": ObjectId(_id)}
-
-        upload_payload.pop("_id", None)
-        upload_payload.pop("created_at", None)
-        for ui in self.uq_indices:
-            upload_payload.pop(ui, None)
+        """
+        I don't care about transaction here, if two updates will be that close that they can iterfere
+        timestamp will be almost the same
+        """
         update_time = dt.now()
-        upload_payload["updated_at"] = update_time
-        new_values = {"$set": upload_payload}
-        _ = self.mycol.update_one(query, new_values)
-        upload_payload["updated_at"] = str(upload_payload["updated_at"])
+        if type(payload) is not dict:
+            return (
+                error_resp(
+                    "update - no patch_payload key or patch_payload is not an object",
+                    400,
+                ),
+                400,
+            )
+
+        query = {"_id": ObjectId(_id)}
+        payload.pop("_id", None)
+        payload.pop("created_at", None)
+        for ui in self.uq_indices:
+            payload.pop(ui, None)
+        new_values = {"$set": payload}
+        up_res = self.mycol.update_one(query, new_values)
+        if not up_res.acknowledged or up_res.matched_count == 0:
+            return NOT_FOUND_RESP, 404
+
         ret_dict = {}
-        ret_dict["entry"] = orig_entry
-        ret_dict["patch"] = upload_payload
-        # changed_fields = []
-        # def iterdict(d):
-        #     for k,v in d.items():
-        #         if isinstance(v, dict):
-        #             iterdict(v)
-        #         else:
-        #             print("$" * 80)
-        #             print (k,":",v)
-        #             if k in orig_entry and
+        ret_dict["patch"] = payload
+        if up_res.modified_count == 0:
+            return error_resp("Nothing to do", 409), 409
 
-        # iterdict(upload_payload)
+        _ = self.mycol.update_one(query, {"$set": {"updated_at": update_time}})
 
-        return ret_dict
+        return generic_resp("Done", 200), 200
 
     def delete(self, _id) -> dict:
         query = {"_id": ObjectId(_id)}
@@ -227,22 +224,22 @@ class MongoProvider(object):
             None
 
     def create_bulk(self, payload={}):
-        pld = payload.get("payload", None)
-        if type(pld) is not list:
+        
+        if type(payload) is not list:
             raise RuntimeError(
                 "create_bulk - no payload key or payload is not an array"
             )
         n_inserted = 0
-        sent = len(pld)
+        sent = len(payload)
         errors = []
 
-        for doc in pld:
+        for doc in payload:
             doc.pop("_id", None)
             creation_time = dt.now()
             doc["created_at"] = creation_time
             doc["updated_at"] = creation_time
         try:
-            res = self.mycol.insert_many(pld, ordered=False)
+            res = self.mycol.insert_many(payload, ordered=False)
             n_inserted = len(res.inserted_ids)
         except pymongo.errors.BulkWriteError as bwe:
             n_inserted = bwe.details.get("nInserted", 0)
@@ -262,17 +259,17 @@ class MongoProvider(object):
         return json.loads(JSONEncoder().encode(res)), n_inserted > 0
 
     def update_bulk(self, payload={}):
-        up_plds = payload.get("patch_payload", None)
-        if type(up_plds) is not list:
+        
+        if type(payload) is not list:
             raise RuntimeError(
                 "update_bulk - no patch_payload key or payload is not an array"
             )
-        sent = len(up_plds)
+        sent = len(payload)
         errors = []
         bulk = self.mycol.initialize_unordered_bulk_op()
         counter = 0
         n_matched = 0
-        for patch in up_plds:
+        for patch in payload:
             try:
                 bulk.find({"_id": ObjectId(patch.get("_id"))}).update(
                     {"$set": patch.get("patch", {})}
@@ -295,6 +292,6 @@ class MongoProvider(object):
         if counter % BULK_SIZE != 0:
             r_tail = bulk.execute()
             n_matched += r_tail.get("nMatched", 0)
-
+        #TODO ograniczyc jesli nic sie nie zmienilo
         res = {"sent": sent, "processed": n_matched, "errors": list(errors)}
         return json.loads(JSONEncoder().encode(res)), n_matched > 0
