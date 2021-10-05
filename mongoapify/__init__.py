@@ -3,7 +3,7 @@
 
 from .webapp import make_connexion_app, get_apigw_user
 from .CRUD import MongoProvider
-from .RabbitEmmiter import RabbitEmmiter
+from .EventEmmiter import EventEmmiter
 from .apify import NOT_FOUND_RESP
 from .apify import error_handler
 
