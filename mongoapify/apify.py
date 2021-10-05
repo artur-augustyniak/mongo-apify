@@ -14,7 +14,7 @@ NOT_FOUND_RESP = {
 def generic_resp(detail, code):
     return {
         "detail": detail,
-        "status": code,
+        "code": code,
     }
 
 

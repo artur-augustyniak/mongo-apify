@@ -2,8 +2,8 @@ import json
 import os
 import pymongo
 from bson import ObjectId
-from bson.json_util import dumps
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
 from datetime import datetime as dt
 import logging
 from .apify import NOT_FOUND_RESP, error_resp, generic_resp
@@ -156,11 +156,11 @@ class MongoProvider(object):
         items = json.loads(JSONEncoder().encode(items))
         return {"count": count, "results": items}
 
-    def create(self, payload={}):
+    def create(self, payload):
         if type(payload) is not dict:
             return (
                 error_resp(
-                    "create - no payload key or patch_payload is not an object",
+                    "payload is not an object",
                     400,
                 ),
                 400,
@@ -170,10 +170,16 @@ class MongoProvider(object):
         payload["created_at"] = creation_time
         payload["updated_at"] = creation_time
         try:
-            self.mycol.insert_one(payload)
-            return generic_resp("Created", 201), 201
+            res = self.mycol.insert_one(payload)
+            return (
+                generic_resp({"status": "created", "_id": str(res.inserted_id)}, 201),
+                201,
+            )
         except pymongo.errors.DuplicateKeyError:
-            return error_resp("Item with this key exists", 409), 409
+            keys = {}
+            for k in self.uq_indices:
+                keys[k] = payload[k]
+            return error_resp({"status": "duplicate_key", "key": keys}, 409), 409
 
     def get_one(self, _id) -> dict:
         query = {"_id": ObjectId(_id)}
@@ -181,7 +187,7 @@ class MongoProvider(object):
         item = JSONEncoder().encode(item)
         return json.loads(item)
 
-    def update(self, _id, payload={}) -> dict:
+    def update(self, _id, payload) -> dict:
         """
         I don't care about transaction here, if two updates will be that close that they can iterfere
         timestamp will be almost the same
@@ -190,7 +196,7 @@ class MongoProvider(object):
         if type(payload) is not dict:
             return (
                 error_resp(
-                    "update - no patch_payload key or patch_payload is not an object",
+                    "payload is not an object",
                     400,
                 ),
                 400,
@@ -206,25 +212,25 @@ class MongoProvider(object):
         if not up_res.acknowledged or up_res.matched_count == 0:
             return NOT_FOUND_RESP, 404
 
-        ret_dict = {}
-        ret_dict["patch"] = payload
         if up_res.modified_count == 0:
-            return error_resp("Nothing to do", 409), 409
+            return error_resp({"status": "nothing_updated"}, 409), 409
 
         _ = self.mycol.update_one(query, {"$set": {"updated_at": update_time}})
-
-        return generic_resp("Done", 200), 200
+        return generic_resp({"status": "updated", "patch": payload}, 200), 200
 
     def delete(self, _id) -> dict:
-        query = {"_id": ObjectId(_id)}
-        x = self.mycol.delete_one(query)
-        if x.deleted_count != 0:
-            return {"message": "Item deleted"}
-        else:
-            None
+        try:
+            query = {"_id": ObjectId(_id)}
+            x = self.mycol.delete_one(query)
+            if x.deleted_count != 0:
+                return generic_resp("deleted", 200), 200
+            else:
+                return error_resp("not_foud", 404), 404
+        except InvalidId as e:
+            return error_resp({"status": "invalid_id", "message": str(e)}, 400), 400
 
     def create_bulk(self, payload={}):
-        
+
         if type(payload) is not list:
             raise RuntimeError(
                 "create_bulk - no payload key or payload is not an array"
@@ -232,6 +238,7 @@ class MongoProvider(object):
         n_inserted = 0
         sent = len(payload)
         errors = []
+        inserted_ids = ["not_supported"]
 
         for doc in payload:
             doc.pop("_id", None)
@@ -255,11 +262,11 @@ class MongoProvider(object):
                 ),
             )
 
-        res = {"sent": sent, "processed": n_inserted, "errors": list(errors)}
+        res = {"sent": sent, "processed": n_inserted, "processed_ids": inserted_ids, "errors": list(errors)}
         return json.loads(JSONEncoder().encode(res)), n_inserted > 0
 
     def update_bulk(self, payload={}):
-        
+
         if type(payload) is not list:
             raise RuntimeError(
                 "update_bulk - no patch_payload key or payload is not an array"
@@ -292,6 +299,6 @@ class MongoProvider(object):
         if counter % BULK_SIZE != 0:
             r_tail = bulk.execute()
             n_matched += r_tail.get("nMatched", 0)
-        #TODO ograniczyc jesli nic sie nie zmienilo
+        # TODO ograniczyc jesli nic sie nie zmienilo
         res = {"sent": sent, "processed": n_matched, "errors": list(errors)}
         return json.loads(JSONEncoder().encode(res)), n_matched > 0

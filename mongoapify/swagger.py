@@ -5,7 +5,7 @@ import os
 DEFAULT_API_RESP = {
     "description": "INFO or ERROR",
     "schema": {
-        "properties": {"message": {"type": "string"}, "status": {"type": "integer"}},
+        "properties": {"code": {"type": "integer"}, "detail": {"type": "object"}},
         "type": "object",
     },
 }
@@ -21,6 +21,12 @@ BULK_API_RESP_DATA = {
                     "key_value": {"type": "object"},
                 },
                 "type": "object",
+            },
+            "type": "array",
+        },
+        "processed_ids": {
+            "items": {
+                "type": "string",
             },
             "type": "array",
         },
