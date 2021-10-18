@@ -11,8 +11,7 @@ setup(
                       'dnspython==2.1.0',
                       'gunicorn==20.1.0',
                       'flask-cors==3.0.10',
-                      'connexion[swagger-ui]==2.8.0',
-                      'pika==1.2.0'
+                      'connexion[swagger-ui]==2.8.0'
                       ],
 
     classifiers=[
