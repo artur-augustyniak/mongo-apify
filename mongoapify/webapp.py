@@ -12,13 +12,8 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 
-def get_apigw_user():
-    api_key = connexion.request.headers.get("x-gw-user", None)
-    if api_key:
-        ret = api_key.split(":")
-        return ret[0]
-    else:
-        return "system"
+def get_header_from_request(name: str):
+    return connexion.request.headers.get(name, None)
 
 
 def make_connexion_app(
