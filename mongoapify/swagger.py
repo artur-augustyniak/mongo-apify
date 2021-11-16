@@ -63,7 +63,7 @@ GET_ALL_PARAMS = [
         "default": 20,
         "description": "The numbers of items to return.",
         "in": "query",
-        "maximum": 100,
+        "maximum": 1000,
         "minimum": 1,
         "name": "limit",
         "required": False,
