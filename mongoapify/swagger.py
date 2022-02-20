@@ -203,7 +203,7 @@ def complete_yaml(yaml_file_path, api_version, host, base_path, scheme):
         path_parts = os.path.basename(yaml_file_path).split(".")
         y["basePath"] = "%s/%s/%s" % (
             base_path.replace("-VER-", api_version), 
-            path_parts[1], 
+            path_parts[0], 
             path_parts[1]
         )
         y["schemes"] = [scheme]
