@@ -1,7 +1,6 @@
 import logging
 import os
 import connexion
-import logaugment
 from connexion.resolver import RestyResolver
 from .CRUD import MongoProvider
 from flask_cors import CORS
@@ -30,7 +29,6 @@ def make_connexion_app(
     logging.basicConfig()
     root = logging.getLogger()
     root.setLevel(level=loglevel)
-    logaugment.set(logger, service=service_name)
     logger.info("selected loglevel %s" % (logging._levelToName.get(loglevel, "NOSET")))
 
     yaml_paths = []
