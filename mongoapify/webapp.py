@@ -1,7 +1,6 @@
 import logging
 import os
 import connexion
-import logstash
 import logaugment
 from connexion.resolver import RestyResolver
 from .CRUD import MongoProvider
@@ -24,8 +23,6 @@ def make_connexion_app(
     service_name,
     swagger_dir,
     log_level="INFO",
-    logstash_host=None,
-    logstash_port=0,
     strict_slashes=True,
 ):
 
@@ -35,15 +32,6 @@ def make_connexion_app(
     root.setLevel(level=loglevel)
     logaugment.set(logger, service=service_name)
     logger.info("selected loglevel %s" % (logging._levelToName.get(loglevel, "NOSET")))
-    if logstash_host is not None and logstash_port > 0:
-        LOGSTASH_HANDLER = logstash.UDPLogstashHandler(
-            logstash_host, logstash_port, version=1
-        )
-        LOGSTASH_HANDLER.setLevel(loglevel)
-        root.addHandler(LOGSTASH_HANDLER)
-        logger.info("logstash configured %s:%s" % (logstash_host, logstash_port))
-    else:
-        logger.info("logstash not configured")
 
     yaml_paths = []
 
