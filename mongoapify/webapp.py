@@ -19,7 +19,6 @@ def make_connexion_app(
     host,
     base_path,
     scheme,
-    service_name,
     swagger_dir,
     log_level="INFO",
     strict_slashes=True,
